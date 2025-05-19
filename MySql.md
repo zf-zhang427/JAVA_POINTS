@@ -8,7 +8,7 @@
 
 #### 数据形式
 
-<img src="../../../LEETCODE/pic/数据形式.png" alt="125" style="zoom:125%;" />
+<img src="assets/mysql/数据形式.png" style="zoom:125%;" />
 
 
 
@@ -26,11 +26,11 @@
    on employee.emp_id = branch.manager_id;
   ```
 
-  <img src="../../../LEETCODE/pic/join表格.png" style="zoom:150%;" />
+  <img src="assets/mysql/join表格.png" style="zoom:150%;" />
 
 #### 索引原理
 
-![](../../../LEETCODE/pic/索引存储.png)
+![](assets/mysql/索引存储.png)
 
 - ##### explain常见参数
 
@@ -112,17 +112,17 @@ select * from text limit 9000,10;
 
   用于处理多个事务在并发的情况下对同一数据进行操作所产生的线程不安全问题
 
-  ![](../../../LEETCODE/pic/隔离级别.png)
+  ![](assets/mysql/隔离级别.png)
 
   - x：解决    √：无法解决
 
   - 脏读：读到未上传数据
 
-  - 不可重复度：![](../../../LEETCODE/pic/不可重复度.png)
+  - 不可重复度：![](assets/mysql/不可重复度.png)
 
     线程1读到数据and处理，期间线程2修改数据，导致1不可重复度
 
-  - 幻读：![](../../../LEETCODE/pic/幻读.png)
+  - 幻读：![](assets/mysql/幻读.png)
   
     线程1读id=1发现里面没数据，准备存，此时线程2存数据，线程1只能读第一次的数据，所以一直存不了，本质上是在进行操作时被其他线程影响
 
@@ -130,7 +130,7 @@ select * from text limit 9000,10;
 
 - 数据操作是在缓冲池上进行的，操作完后将其存到磁盘中保存（磁盘保存的最小单位是页管理(16kb)）
 
-  <img src="../../../LEETCODE/pic/操作数据.png" style="zoom:100%;" />
+  <img src="assets/mysql/操作数据.png" style="zoom:100%;" />
 
 - ##### bufferPool与redo log undo log（重点）
 
@@ -164,19 +164,19 @@ select * from text limit 9000,10;
 
   DB_ROLL_PTR：指针，指向这条记录的上一个版本
 
-  ![](../../../LEETCODE/pic/MVCC_1.png)
+  ![](assets/mysql/MVCC_1.png)
 
   但数据库只有当前版本的数据+隐藏字段，**历史数据存在undolog中**
 
 - undolog中维护了整个数据逻辑链
 
-  <img src="../../../LEETCODE/pic/MVCC_2.png" style="zoom:80%;" />
+  <img src="assets/mysql/MVCC_2.png" style="zoom:80%;" />
 
   要想找到本线程对应的历史数据，需要**创建 readview 对 undolog 进行查找定位**
 
 - readView
 
-  ![](../../../LEETCODE/pic/MVCC_3.png)
+  ![](assets/mysql/MVCC_3.png)
 
   通过以上3个信息对 undolog 中数据进行条件判断
 
