@@ -53,8 +53,8 @@
 1. **返回 GitHub Desktop**
    - 你会看到左侧栏显示所有改动的文件（标记为 `Changes`）。
 2. **填写提交信息**
-   - 在左下角的输入框填写 **Summary**（填修改时间）。
-   - 可选的 **Description** 中可添加详细说明。
+   - 在左下角的输入框填写 **Summary**（必填，如 `Update diary entries`）。
+   - 可选的 **Description** 中可添加详细说明（如 `Added June notes`）。
    - 点击 **Commit to main**（或当前分支名）。
 
 
