@@ -10,6 +10,8 @@
 
 5. 物理层
 
+   <img src="./../assets/TCP/package.png" style="zoom:50%;" />
+
    
 
 #### TCP
