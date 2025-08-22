@@ -30,7 +30,7 @@
 
 #### 索引原理
 
-![](assets/索引存储.png)
+![](../assets/mysql/索引存储.png)
 
 - ##### explain常见参数
 
@@ -51,6 +51,10 @@ show index from text
 create index text_index on text(text)
 ```
 
+- 注意：主键和唯一键都自动定义为索引，二者都是不能出现重复字段，但是：
+  - 一个表可以有多个唯一键，只能有一个主键
+  - 唯一键可以为NULL，但主键必须有值
+
 
 
 ```sql
@@ -61,9 +65,29 @@ select * from text limit 9000,10;
 
 - 优化：可以用索引的方式获取10条数据id，再通过id获取数据 (基于索引，B+树快找)
 
-  ```sql
-  select * from text t,(select text_id from text order by text_id limit 9000, 10) a where t.text_id = a.text_id;
-  ```
+  - 延迟关联：
+
+    ```sql
+    select * from text t,(select text_id from text order by text_id limit 9000, 10) a where t.text_id = a.text_id;
+    ```
+
+    - 索引叶子节点是链表，按 `text_id` 有序排列。
+    - 数据库从最小的 `text_id` 开始，沿着链表向后数 9000 条，然后取接下来的 10 条。
+    - 这个过程是 **O(offset + limit)**，但由于是索引扫描，每条记录访问非常快。
+
+  - 游标分页：
+
+    ```sql
+    SELECT * FROM risk_rating_alert WHERE performance_id > '12345' ORDER BY performance_id LIMIT 100;
+    ```
+
+    - 利用 `performance_id` 的索引（B+树），**直接定位到 '12345' 之后的位置**；
+    - 从该位置开始顺序读取 100 条数据；
+    - 返回结果。
+
+  
+
+
 
 - ##### 索引创建原则
 
@@ -112,17 +136,17 @@ select * from text limit 9000,10;
 
   用于处理多个事务在并发的情况下对同一数据进行操作所产生的线程不安全问题
 
-  ![](assets/隔离级别.png)
+  ![](../assets/mysql/隔离级别.png)
 
   - x：解决    √：无法解决
 
   - 脏读：读到未上传数据
 
-  - 不可重复度：![](assets/不可重复度.png)
+  - 不可重复度：![](../assets/mysql/不可重复度.png)
 
     线程1读到数据and处理，期间线程2修改数据，导致1不可重复度
 
-  - 幻读：![](assets/幻读.png)
+  - 幻读：![](../assets/mysql/幻读.png)
   
     线程1读id=1发现里面没数据，准备存，此时线程2存数据，线程1只能读第一次的数据，所以一直存不了，本质上是在进行操作时被其他线程影响
 
@@ -164,7 +188,7 @@ select * from text limit 9000,10;
 
   DB_ROLL_PTR：指针，指向这条记录的上一个版本
 
-  ![](assets/MVCC_1.png)
+  ![](../assets/mysql/MVCC_1.png)
 
   但数据库只有当前版本的数据+隐藏字段，**历史数据存在undolog中**
 
@@ -176,7 +200,7 @@ select * from text limit 9000,10;
 
 - readView
 
-  ![](assets/MVCC_3.png)
+  ![](../assets/mysql/MVCC_3.png)
 
   通过以上3个信息对 undolog 中数据进行条件判断
 
