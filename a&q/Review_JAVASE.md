@@ -131,9 +131,9 @@
 
     **关键词：反射机制、接口生成代理对象、字节码生成、InvocationHandler、Proxy、继承机制。**
 
-    <img src="assets/javase/agent1.png" style="zoom:75%;" />
+    <img src="../assets/javase/agent1.png" style="zoom:75%;" />
 
-    <img src="assets/javase/agent2.png" style="zoom:75%;" />
+    <img src="../assets/javase/agent2.png" style="zoom:75%;" />
 
     
 
