@@ -91,18 +91,24 @@ select * from text limit 9000,10;
 
 - ##### 索引创建原则
 
+  背景：
+
   - 数据量大且访问量大的表可以创建索引
+
+  本身：
 
   - 表内常作为条件查询where、orderby、groupby的字段可作为索引
 
   - 字段区分度较高
 
+  扩展：
+
   - 尽量使用联合索引
-
+  
   - 索引需要维护，所以不能随便创建
-
+  
   - 注意要用notnull约束
-
+  
     
 
 #### 事务
@@ -144,7 +150,7 @@ select * from text limit 9000,10;
 
   - 不可重复度：![](../assets/mysql/不可重复度.png)
 
-    线程1读到数据and处理，期间线程2修改数据，导致1不可重复度
+    线程1读到数据and处理，期间线程2修改数据，导致1不可重复读
 
   - 幻读：![](../assets/mysql/幻读.png)
   
@@ -160,13 +166,13 @@ select * from text limit 9000,10;
 
   1. 客户端执行 sql 语句，客户端将sql语句发给 innodb 执行器执行；
   2. innodb 将逻辑处理与读写操作统一在内存中的 bufferpool 上执行；
-  3. innodb以页为单位和硬盘进行数据交互，将需要操作的数据从硬盘中写入bufferpool；
+  3. innodb**以页为单位**和硬盘进行数据交互，将需要操作的数据从硬盘中写入bufferpool；
   4. 为了支持回滚，把操作前的数据存到 undolog 中，之后修改数据；
-     - undolog 实现一致性和原子性，在数据库事务开始前，记录更新前的数据到undolog中 
+     - **undolog 实现一致性和原子性**，在数据库事务开始前，记录更新前的数据到undolog中 
      - 功能1：回滚 -- 记录逻辑日志，delete 语句对应存一条 desert，update 语句对应存相反的一条
      - 功能2：MVCC(多版本控制)
   5. bufferpool 中的数据被称为脏数据，只有 commit 后把数据写到硬盘上，bufferpool 的 page 才是干净的；
-  6. 为避免丢失数据，bufferpool 会先将修改后的数据存入硬盘中的 redolog 中，之后才存储数据
+  6. **为避免丢失数据**，bufferpool 会先将**修改后的数据存入硬盘中的 redolog** 中，之后才存储数据
      - 假如传输脏页数据到磁盘时错误，可以通过 redolog 进行恢复
   7. 在将数据写入磁盘后，把与数据库修改相关的sql语句以二进制形式存入binlog中(不含select、show)
      - 功能1：数据恢复
@@ -179,6 +185,8 @@ select * from text limit 9000,10;
 #### MVCC相关
 
 在处理并发数据时，如果使用锁机制会影响性能，所以**通过 MVCC 无锁实现 Mysql 的事务隔离级别** 
+
+核心：MVCC机制 是在你**查询时创建 readView 快照**，在快照中**通过undolog**进行条件判断定位到对应信息
 
 - 三个关键：**隐藏字段、undolog日志、readview**
 

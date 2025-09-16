@@ -87,6 +87,10 @@ Kafka 集群被部署在了 `algo-stg-kafka-n1`, `algo-stg-kafka-n2`, 和 `algo-
 
 <img src="../assets/kfk/kafka校验.png" style="zoom:125%;" />
 
+1. **仍然使用 `poll()`**：`KafkaMessageListenerContainer` 内部会创建 `KafkaConsumer` 并调用 `poll()`
+2. **自动线程管理**：Spring 帮你管理消费者线程，不需要手动写 `while(true)`
+3. **事件驱动风格**：你只需要关注“收到消息后做什么”，不用关心“怎么拿消息”
+
 ##### 如何成功连接kafka？
 
 - 配置 Kafka **集群地址** 。
@@ -106,12 +110,29 @@ Kafka 集群被部署在了 `algo-stg-kafka-n1`, `algo-stg-kafka-n2`, 和 `algo-
 一个 consumer group 中有多个 consumer，一个 topic 有多个 partition，涉及到 partition 的分配问题。
 Kafka 有两种分配策略，一是 RoundRobin，一是 Range。
 
-- **RoundRobin**
+- **RoundRobin - 轮询**
 
-  轮询的方式分配分区时，不是基于同一个topic去分，是把所有分区看成一个整体，TopicAndPartition类代表着所有topic的分区，TopicAndPartition会根据分区对象的hash值排序，把排完序的分区轮询分配给消费者。
+  轮询的方式分配分区时，不是基于同一个topic去分，是把所有分区看成一个整体，TopicAndPartition类代表着所有topic的分区，TopicAndPartition会根据分区对象的**hash值排序，把排完序的分区轮询分配给消费者**。
+
+  **逻辑：**
+
+  - 将所有订阅的 Partition 按 Topic + Partition 排序
+
+  - 将所有 Consumer 按字典序排序
+
+  - **轮询方式**分配每个 Partition
+
+    | Consumer | 分配的 Partition       |
+    | -------- | ---------------------- |
+    | C0       | orders-P0, payments-P1 |
+    | C1       | orders-P1, payments-P0 |
 
   **why?**
-  如果消费组里的消费者A, 订阅了topic甲和乙，消费者B订阅的是乙和丙，通过轮序后，消费者A分配到丙的分区，消费者B分配到甲的分区，会出问题，所以使用轮询的方式，前提是消费组里的消费者都是订阅的相同的主题。
+
+  - **优点**：分配更均匀
+  - **缺点**：
+    - 要求所有 Topic 的 Partition 数量相同
+    - 如果 Consumer 只订阅部分 Topic，可能分配不均
 
   
 
@@ -121,17 +142,65 @@ Kafka 有两种分配策略，一是 RoundRobin，一是 Range。
 
   
 
-- **Range**
+- **Range -  按序分配**
 
   默认的消费者分区分配方式。基于同一个主题，分区数 / 消费组里的消费者数均分下去，如果除不均，会有一个消息者多分配分区。面向topic
 
-  
+  **逻辑：**
 
+  - 将每个 Topic 的 Partition 按序排列
+  - 将 Consumer 按字典序排列
+  - 将 Partition **连续地、按范围**分配给 Consumer
+  
+  | Consumer | 分配的 Partition |
+  | -------- | ---------------- |
+  | C0       | P0, P1           |
+  | C1       | P2, P3           |
+  
+  **why?**
+  
+  - **优点**：简单直观
+  -  **缺点**：容易造成**不均衡**，尤其是 Consumer 数量变化时
+  
+  
+  
   <img src="../assets/kfk/均分模式.png" style="zoom:75%;" />
   
   
   
   <img src="../assets/kfk/均分分配.png" style="zoom:70%;" />
+  
+-  **StickyAssignor - 尽量不变**
+
+  适用所有场景，尤其是希望**最小化 Rebalance 影响**
+
+  **逻辑：**
+
+  - 负载均衡
+  - 尽可能保持**原有分配不变**
+
+  **eg：**
+
+  - C0: P0, P1
+
+    C1: P2, P3
+
+  - 现在 C2 加入
+
+  StickyAssignor 会尝试：
+
+  - 保持 C0 和 C1 的现有分配
+  - 把 P4, P5 分给 C2
+
+  **why？**
+
+  **优点：**
+
+  - 分配均衡
+
+  - Rebalance 时变动最小，**减少消费中断**
+
+  **缺点**：算法复杂，计算开销略高
 
 ##### **触发时机**
 
@@ -184,7 +253,7 @@ Kafka 的 producer 生产数据，要写入到 log 文件中，写的过程一�
   - producer 传输数据到 kafka 时，传输给每个 part 的 leader 节点，**不同 broker 的 follower 节点会同步到 leader 节点的数据**；为保证传输完整，可以配置 ack 为 all，当所有 **isr - follower 副本复制到数据**后，才 ack 通知 producer；
   - consumer 消费数据时，也会出现数据安全问题，比如重复消费，场景是当前消费者宕机，负责的 part 交给其他消费者**(触发 rebalance**)，因为默认为自动上传 offset，导致处理和上传不同步，所以新消费者消费已消费数据。解决方法是，配置为**手动上传 offset** ，每次业务模块结束时**异步上传 offset**， 并且 finally 一个**同步上传兜底**。
 - **可用：**
-  - broker 集群中每个 partition 有多个副本，其中一个为 leader，其余为 follower。**所有follower 主动从 leader 拉取消息**。其中**isr 集合包含与 leader 保持同步的副本**。当 leader 宕机时，kafka 会从 isr 中选举新的 leader，保证数据不丢失。
+  - broker 集群中每个 partition 有多个副本，其中一个为 leader，其余为 follower。**所有follower 主动从 leader 拉取消息**。其中**isr 是与 leader 保持同步的副本**。当 leader 宕机时，kafka 会从 isr 中选举新的 leader，保证数据不丢失。
 - **性能：**
   - linux 存储结构分为**用户空间，内核空间和硬盘**；kafka 因为**分区结构**，不受单台服务器限制，可以处理更多数据，并且其存储方式是顺序读写，在log、index后**追加文件，相比于随机存储，速度更快**，其存储策略是通**过页缓存，缓存到内存中**，再委托内存写入磁盘，减少磁盘IO；在 consumer 读取数据时，数据链路：**磁盘 -> 内存 -> 网卡**；不经过用户空间进一步提升性能。
   - 内存：暂时存放CPU运算数据，断电不保存；所有程序(进程)都在内存中运行
