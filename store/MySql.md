@@ -236,7 +236,11 @@ https://www.bilibili.com/video/BV1Hr421p7EK/?spm_id_from=333.337.search-card.all
 
 
 
-#### 连接池
+### 行锁and表锁
+
+
+
+### 连接池
 
 为保证数据传递与通信的可靠性，需要通过操作系统建立连接通道，用完关闭
 
