@@ -113,7 +113,7 @@ select * from text limit 9000,10;
 
 #### 事务
 
-- ##### 实践1：幻读
+- ##### 实践1：脏读
 
   原count = 99
 
@@ -166,7 +166,7 @@ select * from text limit 9000,10;
 
   1. 客户端执行 sql 语句，客户端将sql语句发给 innodb 执行器执行；
   2. innodb 将逻辑处理与读写操作统一在内存中的 bufferpool 上执行；
-  3. innodb**以页为单位**和硬盘进行数据交互，将需要操作的数据从硬盘中写入bufferpool；
+  3. innodb**以页为单位（4kb）**和硬盘进行数据交互，将需要操作的数据从硬盘中写入bufferpool；
   4. 为了支持回滚，把操作前的数据存到 undolog 中，之后修改数据；
      - **undolog 实现一致性和原子性**，在数据库事务开始前，记录更新前的数据到undolog中 
      - 功能1：回滚 -- 记录逻辑日志，delete 语句对应存一条 desert，update 语句对应存相反的一条
