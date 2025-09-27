@@ -113,6 +113,8 @@ select * from text limit 9000,10;
 
 #### 事务
 
+
+
 - ##### 实践1：脏读
 
   原count = 99
@@ -165,16 +167,29 @@ select * from text limit 9000,10;
 - ##### bufferPool与redo log undo log（重点）
 
   1. 客户端执行 sql 语句，客户端将sql语句发给 innodb 执行器执行；
+  
   2. innodb 将逻辑处理与读写操作统一在内存中的 bufferpool 上执行；
-  3. innodb**以页为单位（4kb）**和硬盘进行数据交互，将需要操作的数据从硬盘中写入bufferpool；
+  
+  3. innodb**以页为单位（16kb）**和硬盘进行数据交互，将需要操作的数据从硬盘中写入bufferpool；
+  
   4. 为了支持回滚，把操作前的数据存到 undolog 中，之后修改数据；
-     - **undolog 实现一致性和原子性**，在数据库事务开始前，记录更新前的数据到undolog中 
+     - **undolog 实现一致性和原子性**，在数据库事务开始前，记录更新前的数据到undolog中（原子性）
      - 功能1：回滚 -- 记录逻辑日志，delete 语句对应存一条 desert，update 语句对应存相反的一条
      - 功能2：MVCC(多版本控制)
+  
   5. bufferpool 中的数据被称为脏数据，只有 commit 后把数据写到硬盘上，bufferpool 的 page 才是干净的；
+  
   6. **为避免丢失数据**，bufferpool 会先将**修改后的数据存入硬盘中的 redolog** 中，之后才存储数据
-     - 假如传输脏页数据到磁盘时错误，可以通过 redolog 进行恢复
+     - 假如传输脏页数据到磁盘时错误，可以通过 redolog 进行恢复(**持久性**)
+     - bufferpool 刷盘是**随机IO**，找到不同的磁盘页修改
+     - redolog 记录在哪个磁盘位置做了什么修改，刷盘时往 redolog 日志文件追加(**顺序IO**)即可
+       - 保证redolog持久？redolog接收数据会先存到 redologbuffer 中，设置参数确定刷盘间隔
+       - 空间有限，边记录边擦除；只能故障恢复，不能全量恢复
+  
   7. 在将数据写入磁盘后，把与数据库修改相关的sql语句以二进制形式存入binlog中(不含select、show)
+  
+     - 追加形式，记录全量日志
+  
      - 功能1：数据恢复
      - 功能2：主从复制，从库线程 a 将binlog写入relaylog中，从库线程 b 读取relaylog 文件并执行，使从库与主库保持一致
 
